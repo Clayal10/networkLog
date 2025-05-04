@@ -8,6 +8,12 @@
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
 
+#define CLEAR_BUFFER(x, len) \
+	int i; \
+	for(i=0; i<len; i++) { \
+		x[i] = '\0'; \
+	} \
+
 // Implimentation of rb_tree can be found at /lib/modules/6.1.0-32-amd64/source/include/linux/rbtree.h
 
 struct addr_node{
@@ -16,19 +22,33 @@ struct addr_node{
     int count;           // 4
 }; // 32 bytes
 
-void* insert_node(struct rb_root *root, uint32_t addr, size_t node_offset){
+// Returns 0 if equal, -1 if a < b, 1 if a > b
+int cmp_func(void* a, void* b){
+	const struct addr_node *a_addr = a;
+	const struct addr_node *b_addr = b;
+
+	if(a_addr->addr == b_addr->addr){
+		return 0;
+	}
+	if(a_addr->addr < b_addr->addr){
+		return -1;
+	}
+	return 1;
+}
+
+void* insert_node(struct rb_root *root, void* addr){
     size_t datasize = 32;
 
     struct rb_node **spot = &(root->rb_node), *parent = NULL;
 	void *new_node;
 	struct rb_node* buffer_node;
 	while(*spot) {
-		uint32_t spot_data = (char*)(*spot) + 24; // Address of the addr_node addr
+		void* spot_data = *spot; // Address of the addr_node addr
 		parent = *spot;
-		if(spot_data == addr){ // We found it!
-            *((char*)(*spot) + 28) += 1; // Incriment count by 1
+		if(cmp_func(spot_data, addr) == 0){
+			printk("FOUND NODE\n");
 			return 0;
-		} else if(spot_data > addr){
+		} else if(cmp_func(spot_data, addr) == -1){ // addr is the new value
 			spot = &((*spot)->rb_right);
         }
 		else{
@@ -38,8 +58,7 @@ void* insert_node(struct rb_root *root, uint32_t addr, size_t node_offset){
 
 	new_node = kmalloc(datasize, 1);
 	memcpy(new_node, addr, datasize);
-	buffer_node = new_node + node_offset;
-    *((char*)buffer_node + 28) = 0;
+	buffer_node = new_node;
 	rb_link_node(buffer_node, parent, spot);
 	rb_insert_color(buffer_node, root);
 	return new_node;

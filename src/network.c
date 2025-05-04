@@ -9,8 +9,12 @@ unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook
 	struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);
 	printk("IP address:  %pI4\n", &(ip_header->saddr));
 
+	struct addr_node new_address = {
+		.addr = ip_header->saddr,
+		.count = 1,
+	};
 	// TODO Insert into tree.
-	insert_node(&root, ip_header->saddr, 0);
+	insert_node(&root, &new_address);
 
 	return NF_ACCEPT;
 }
@@ -24,11 +28,15 @@ ssize_t read_addr(struct file *filp, char *buf, size_t count, loff_t *offp) {
 		return 0;
 	}
 	rbtree_postorder_for_each_entry_safe(pos, n, &root, node){ // I need to think about if it would really add 24 bytes or 32 * 24 bytes.
-		char* buffer;
-		size_t readAmt = sprintf(buffer, "%u : %d\n", pos->addr, pos->count);
+		char buffer[16];
+		//size_t readAmt = sprintf(buffer, "%u : %d\n", pos->addr, pos->count); // Count isn't initialized rn
+		size_t readAmt = sprintf(buffer, "%u\n", pos->addr);
 
-		copy_to_user(buf+readlen, buffer, readAmt);
+		printk("Started writing!!!\n");
+		copy_to_user(buf+readlen, buffer, readAmt );
 		readlen += readAmt;
+
+		CLEAR_BUFFER(buffer, 16)
 	}
 
 	return readlen;
@@ -50,7 +58,7 @@ int __init init(void) {
 }
 
 void __exit cleanup(void) {
-	struct add_node *pos, *n;
+	struct addr_node *pos, *n;
 
 	nf_unregister_net_hook(&init_net, &hook);
 	remove_proc_entry(PROC_FILE_NAME,NULL);
