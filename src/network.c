@@ -19,35 +19,29 @@ unsigned int hook_function(void *priv, struct sk_buff *skb, const struct nf_hook
 	return NF_ACCEPT;
 }
 
-#define READ_LEN 25
+#define READ_LEN 30
 ssize_t read_addr(struct file *filp, char *buf, size_t count, loff_t *offp) {
 	char byte_list[4];
 	size_t readlen = 0;
-	int i;
-
 	struct addr_node *pos, *n;
 	if(*offp){
 		return 0;
 	}
 
-
 	rbtree_postorder_for_each_entry_safe(pos, n, &root, node){ // I need to think about if it would really add 24 bytes or 32 * 24 bytes.
 		char buffer[READ_LEN];
 
-		byte_list[0] = (pos->addr & 0x000000FF);
-		byte_list[1] = (pos->addr & 0x0000FF00) >> 8;
-		byte_list[2] = (pos->addr & 0x00FF0000) >> 16;
-		byte_list[3] = (pos->addr & 0xFF000000) >> 24;
+		int_to_addr(byte_list, pos->addr);
 
 		size_t readAmt = sprintf(buffer, "%d.%d.%d.%d : %d\n", byte_list[0], byte_list[1], byte_list[2], byte_list[3], pos->count);	
 
-		printk("Started writing!!!\n");
 		copy_to_user(buf+readlen, buffer, readAmt );
 		readlen += readAmt;
 
 		CLEAR_BUFFER(buffer, READ_LEN)
 	}
 
+	*offp = readlen;
 	return readlen;
 }
 
@@ -67,12 +61,15 @@ int __init init(void) {
 }
 
 void __exit cleanup(void) {
+	char addr_list[4];
 	struct addr_node *pos, *n;
 
 	nf_unregister_net_hook(&init_net, &hook);
 	remove_proc_entry(PROC_FILE_NAME,NULL);
 
 	rbtree_postorder_for_each_entry_safe(pos, n, &root, node){
+		int_to_addr(addr_list, pos->addr);
+		printk("Address: %d.%d.%d.%d : %d\n", addr_list[0], addr_list[1], addr_list[2], addr_list[3], pos->count);
 		kfree(pos);
 	}
 }

@@ -7,6 +7,7 @@
 #include <linux/socket.h>
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
+#include <linux/mutex.h>
 
 #define CLEAR_BUFFER(x, len) \
 	int i; \
@@ -40,13 +41,14 @@ void* insert_node(struct rb_root *root, void* addr){
 	size_t datasize = 32;
 
 	struct rb_node **spot = &(root->rb_node), *parent = NULL;
-	void *new_node;
+	struct addr_node* new_node;
 	struct rb_node* buffer_node;
 	while(*spot) {
-		void* spot_data = *spot; // Address of the addr_node addr
+		struct addr_node *spot_data = rb_entry(*spot, struct addr_node, node);
 		parent = *spot;
 		if(cmp_func(spot_data, addr) == 0){
 			printk("FOUND NODE\n");
+			(spot_data)->count++;
 			return 0;
 		}else if(cmp_func(spot_data, addr) == -1){ // addr is the new value
 			spot = &((*spot)->rb_right);
@@ -55,10 +57,17 @@ void* insert_node(struct rb_root *root, void* addr){
        		}
 	}
 
-	new_node = kmalloc(datasize, 1);
+	new_node = kmalloc(datasize, GFP_KERNEL);
 	memcpy(new_node, addr, datasize);
-	buffer_node = new_node;
+	buffer_node = &new_node->node;
 	rb_link_node(buffer_node, parent, spot);
 	rb_insert_color(buffer_node, root);
 	return new_node;
+}
+
+void int_to_addr(char* list, uint32_t addr){
+	list[0] = (addr & 0x000000FF);
+	list[1] = (addr & 0x0000FF00) >> 8;
+	list[2] = (addr & 0x00FF0000) >> 16;
+	list[3] = (addr & 0xFF000000) >> 24;
 }
