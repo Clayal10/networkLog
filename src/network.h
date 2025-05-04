@@ -17,9 +17,9 @@
 // Implimentation of rb_tree can be found at /lib/modules/6.1.0-32-amd64/source/include/linux/rbtree.h
 
 struct addr_node{
-    struct rb_node node; // 24
-    uint32_t addr;       // 4
-    int count;           // 4
+   	struct rb_node node; // 24
+    	uint32_t addr;       // 4
+    	int count;           // 4
 }; // 32 bytes
 
 // Returns 0 if equal, -1 if a < b, 1 if a > b
@@ -37,9 +37,9 @@ int cmp_func(void* a, void* b){
 }
 
 void* insert_node(struct rb_root *root, void* addr){
-    size_t datasize = 32;
+	size_t datasize = 32;
 
-    struct rb_node **spot = &(root->rb_node), *parent = NULL;
+	struct rb_node **spot = &(root->rb_node), *parent = NULL;
 	void *new_node;
 	struct rb_node* buffer_node;
 	while(*spot) {
@@ -48,12 +48,11 @@ void* insert_node(struct rb_root *root, void* addr){
 		if(cmp_func(spot_data, addr) == 0){
 			printk("FOUND NODE\n");
 			return 0;
-		} else if(cmp_func(spot_data, addr) == -1){ // addr is the new value
+		}else if(cmp_func(spot_data, addr) == -1){ // addr is the new value
 			spot = &((*spot)->rb_right);
-        }
-		else{
+		}else{
 			spot = &((*spot)->rb_left);
-        }
+       		}
 	}
 
 	new_node = kmalloc(datasize, 1);
